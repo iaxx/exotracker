@@ -1,12 +1,21 @@
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QLineEdit
 from PyQt5.QtGui import QColor, QPalette, QFont, QIntValidator
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QEasingCurve, QTimer
+from PyQt5.QtCore import QPoint
 from getpass import getuser
 import sys
 import os
 import json
 
 class UI(QMainWindow):
+    def mousePressEvent(self, event):
+        self.oldPos = event.globalPos()
+
+    def mouseMoveEvent(self, event):
+        delta = QPoint(event.globalPos() - self.oldPos)
+        self.move(self.x() + delta.x(), self.y() + delta.y())
+        self.oldPos = event.globalPos()
+
     def __init__(self):
         super().__init__()
         self.setWindowFlags(Qt.FramelessWindowHint)
@@ -17,7 +26,7 @@ class UI(QMainWindow):
         self.close_button.move(self.width() - self.close_button.width(), 0)
         self.close_button.clicked.connect(self.close)
         
-        self.setWindowTitle("Game Stats Tracker")
+        self.setWindowTitle("Exotracker")
         self.setGeometry(200, 200, 639, 420)
         palette = QPalette()
         palette.setColor(QPalette.Background, QColor("#171717"))
@@ -129,7 +138,7 @@ class UI(QMainWindow):
         self.totalGamesInput.setGeometry(400, 160, 0, 30)
         self.confirmButton.setGeometry(300, 220, 0, 30)
 
-        self.animate(self.userLabel, 500, QRect(250, 20, 0, 30), QRect(250, 20, 700, 30))
+        self.animate(self.userLabel, 250, QRect(0, 20, 0, 30), QRect(250, 20, 1000, 30))
         QTimer.singleShot(500, self.show_wins_input)
 
     def show_wins_input(self):
@@ -168,18 +177,28 @@ class UI(QMainWindow):
         self.lossButton.show()
 
         self.data = {"totalWins": self.totalWins, "totalGames": self.totalGames}
-        with open('data.txt', 'w') as outfile:
+        # Create the directory path
+        directory = os.path.join(os.environ['LOCALAPPDATA'], 'Exotracker')
+        # Create the directory if it doesn't exist
+        os.makedirs(directory, exist_ok=True)
+        # Create the path for the JSON file
+        file_path = os.path.join(directory, 'data.json')
+        # Write the JSON file
+        with open(file_path, 'w') as outfile:
             json.dump(self.data, outfile)
+        outfile.close()  # Close the file after writing
 
     def increment_wins(self):
         self.totalWins += 1
         self.totalGames += 1
         self.update_labels()
+        self.update_data()
 
     def increment_losses(self):
         self.totalLosses += 1
         self.totalGames += 1
         self.update_labels()
+        self.update_data()  
 
     def update_labels(self):
         self.totalWinsLabel.setText("Wins: " + str(self.totalWins))
@@ -187,14 +206,27 @@ class UI(QMainWindow):
         self.totalGamesLabel.setText("Games: " + str(self.totalGames))
         self.winRateLabel.setText("WR: " + str(round((self.totalWins / self.totalGames) * 100, 2)) + "%")
 
+    def update_data(self):
+        # Update the data
+        self.data = {"totalWins": self.totalWins, "totalGames": self.totalGames}
+        # Create the path for the JSON file
+        file_path = os.path.join(os.environ['LOCALAPPDATA'], 'Exotracker', 'data.json')
+        # Write the JSON file
+        with open(file_path, 'w') as outfile:
+            json.dump(self.data, outfile)
+
+
 if __name__ == "__main__":
     App = QApplication(sys.argv)
 
     window = UI()
     window.show()
 
-    if os.path.isfile('data.txt'):
-        with open('data.txt') as json_file:
+    # Create the path for the JSON file
+    file_path = os.path.join(os.environ['LOCALAPPDATA'], 'Exotracker', 'data.json')
+    # Check if the JSON file exists
+    if os.path.isfile(file_path):
+        with open(file_path) as json_file:
             data = json.load(json_file)
             window.totalWinsInput.setText(str(data["totalWins"]))
             window.totalGamesInput.setText(str(data["totalGames"]))
